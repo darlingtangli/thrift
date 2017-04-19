@@ -115,7 +115,7 @@ func (pool *ClientPool) Get(timeout time.Duration) (*ClientPoolItem, error) {
 	return item, err
 }
 
-func (pool *ClientPool) Recycle(item *ClientPoolItem) {
+func (pool *ClientPool) Release(item *ClientPoolItem) {
 	if item.broken {
 		item.destory()
 		pool.dispatchCreator(item.serverAddr, true)
