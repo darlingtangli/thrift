@@ -1,1 +1,1 @@
-# thrift
+# thrift client pool
