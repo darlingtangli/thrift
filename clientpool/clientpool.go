@@ -33,10 +33,17 @@ type ClientPoolItem struct {
 	broken bool
 	// remote server addr
 	serverAddr string
+	// reference of pool
+	pool *ClientPool
 }
 
 func (item *ClientPoolItem) Client() Client {
 	return item.client
+}
+
+func (item *ClientPoolItem) Release() {
+	item.pool.release(item)
+	return
 }
 
 func (item *ClientPoolItem) Broken() {
@@ -115,16 +122,6 @@ func (pool *ClientPool) Get(timeout time.Duration) (*ClientPoolItem, error) {
 	return item, err
 }
 
-func (pool *ClientPool) Release(item *ClientPoolItem) {
-	if item.broken {
-		item.destory()
-		pool.dispatchCreator(item.serverAddr, true)
-	} else {
-		pool.idleItems <- item
-	}
-	return
-}
-
 func (pool *ClientPool) Idles() int {
 	return len(pool.idleItems)
 }
@@ -150,6 +147,16 @@ func (pool *ClientPool) createClient(serverAddr string) (Client, error) {
 	return pool.clientFactory.CreateClient(serverAddr)
 }
 
+func (pool *ClientPool) release(item *ClientPoolItem) {
+	if item.broken {
+		item.destory()
+		pool.dispatchCreator(item.serverAddr, true)
+	} else {
+		pool.idleItems <- item
+	}
+	return
+}
+
 func (pool *ClientPool) launchCreator() {
 	pool.waitGroup.Add(1)
 	go func() {
@@ -167,7 +174,7 @@ func (pool *ClientPool) launchCreator() {
 					pool.dispatchCreator(serverAddr, true)
 				} else {
 					// push the new create client to idle list
-					pool.idleItems <- &ClientPoolItem{client, false, serverAddr}
+					pool.idleItems <- &ClientPoolItem{client, false, serverAddr, pool}
 				}
 			}
 		}
